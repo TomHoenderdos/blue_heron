@@ -11,14 +11,12 @@ defmodule BlueHeron.HCI.Transport.UART.FirmwareLoaderTest do
       assert FirmwareLoader.parse_hcd(<<>>) == []
     end
 
-    test "single record" do
-      # opcode 0xFC2E (DownloadMinidriver), 0 params
+    test "single record with no parameters" do
       hcd = <<0x2E, 0xFC, 0x00>>
       assert [<<0x2E, 0xFC, 0x00>>] = FirmwareLoader.parse_hcd(hcd)
     end
 
     test "single record with parameters" do
-      # opcode 0xFC18 (UpdateBaudrate), 6 bytes of params
       hcd = <<0x18, 0xFC, 0x06, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00>>
       assert [<<0x18, 0xFC, 0x06, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00>>] = FirmwareLoader.parse_hcd(hcd)
     end
@@ -39,6 +37,35 @@ defmodule BlueHeron.HCI.Transport.UART.FirmwareLoaderTest do
       assert byte_size(result) == 255
       assert <<0x4C, 0xFC, 252, _rest::binary-252>> = result
     end
+
+    test "preserves exact binary content" do
+      params = <<0x01, 0x02, 0x03, 0x04, 0x05>>
+      hcd = <<0xAB, 0xCD, 5>> <> params
+      [result] = FirmwareLoader.parse_hcd(hcd)
+      assert result == hcd
+    end
+
+    test "raises on truncated record" do
+      # Header says 5 bytes of params but only 3 are present
+      truncated = <<0x4C, 0xFC, 0x05, 0xAA, 0xBB, 0xCC>>
+
+      assert_raise FunctionClauseError, fn ->
+        FirmwareLoader.parse_hcd(truncated)
+      end
+    end
+
+    test "raises on incomplete header" do
+      # Only 2 bytes, missing length byte
+      assert_raise FunctionClauseError, fn ->
+        FirmwareLoader.parse_hcd(<<0x4C, 0xFC>>)
+      end
+    end
+
+    test "raises on single byte" do
+      assert_raise FunctionClauseError, fn ->
+        FirmwareLoader.parse_hcd(<<0x4C>>)
+      end
+    end
   end
 
   describe "firmware_name/1" do
@@ -56,6 +83,11 @@ defmodule BlueHeron.HCI.Transport.UART.FirmwareLoaderTest do
 
     test "returns nil for unknown subversion" do
       assert FirmwareLoader.firmware_name(0x0000) == nil
+    end
+
+    test "returns nil for arbitrary values" do
+      assert FirmwareLoader.firmware_name(0xFFFF) == nil
+      assert FirmwareLoader.firmware_name(0x1234) == nil
     end
   end
 end
