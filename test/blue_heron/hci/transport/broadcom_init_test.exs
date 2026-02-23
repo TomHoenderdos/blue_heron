@@ -94,9 +94,9 @@ defmodule BlueHeron.HCI.Transport.BroadcomInitTest do
 
     test "uses default firmware path when nil is passed" do
       setup_params = %{lmp_pal_subversion: 0x6107}
-      # Default path is /lib/firmware/brcm which won't exist on dev machines
-      # so this should return empty list (file not found)
-      assert [] == BroadcomInit.vendor_init_commands(setup_params, nil)
+      # Default path is priv/firmware/brcm which includes bundled firmware
+      commands = BroadcomInit.vendor_init_commands(setup_params, nil)
+      assert [%VendorSpecific.DownloadMinidriver{} | _] = commands
     end
 
     test "correct firmware name is used for each chip" do
@@ -111,8 +111,12 @@ defmodule BlueHeron.HCI.Transport.BroadcomInitTest do
             {0x6109, "BCM4345C0.hcd"}
           ] do
         File.write!(Path.join(firmware_dir, filename), <<0x03, 0x0C, 0x00>>)
-        commands = BroadcomInit.vendor_init_commands(%{lmp_pal_subversion: subversion}, firmware_dir)
-        assert length(commands) > 0, "Expected commands for subversion #{inspect(subversion, base: :hex)}"
+
+        commands =
+          BroadcomInit.vendor_init_commands(%{lmp_pal_subversion: subversion}, firmware_dir)
+
+        assert length(commands) > 0,
+               "Expected commands for subversion #{inspect(subversion, base: :hex)}"
       end
 
       File.rm_rf!(firmware_dir)

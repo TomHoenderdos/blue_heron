@@ -147,7 +147,9 @@ defmodule BlueHeron.HCI.Transport do
   @impl GenServer
   def init(args) do
     all_env = Application.get_all_env(:blue_heron)
-    firmware_path = Keyword.get(all_env, :firmware_path, "/lib/firmware/brcm")
+
+    firmware_path =
+      Keyword.get(all_env, :firmware_path, Application.app_dir(:blue_heron, "priv/firmware/brcm"))
 
     state = %{
       transport: nil,

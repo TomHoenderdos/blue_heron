@@ -18,7 +18,7 @@ defmodule BlueHeron.HCI.Transport.BroadcomInit do
 
   @broadcom_manufacturer_id 15
 
-  @default_firmware_path "/lib/firmware/brcm"
+  @default_firmware_path Application.app_dir(:blue_heron, "priv/firmware/brcm")
 
   @doc """
   Returns `true` if the manufacturer ID indicates a Broadcom controller.
@@ -42,7 +42,10 @@ defmodule BlueHeron.HCI.Transport.BroadcomInit do
 
     case FirmwareLoader.firmware_name(lmp_subversion) do
       nil ->
-        Logger.info("No firmware mapping for LMP subversion #{inspect(lmp_subversion, base: :hex)}")
+        Logger.info(
+          "No firmware mapping for LMP subversion #{inspect(lmp_subversion, base: :hex)}"
+        )
+
         []
 
       name ->
