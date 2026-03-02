@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 defmodule BlueHeron.GATT.Server do
+  require Logger
+
   @moduledoc """
   A behaviour module for implementing a GATT server.
 
@@ -87,6 +89,7 @@ defmodule BlueHeron.GATT.Server do
     ReadByTypeResponse,
     ReadRequest,
     ReadResponse,
+    WriteCommand,
     WriteRequest,
     WriteResponse
   }
@@ -188,6 +191,14 @@ defmodule BlueHeron.GATT.Server do
           end
         end
 
+      %WriteCommand{handle: handle} ->
+        # WriteCommand (0x52) = Write Without Response. No ATT response needed.
+        if find_descriptor_by_handle(state, handle) do
+          write_descriptor_value_no_response(state, handle, request.data)
+        else
+          write_characteristic_value_no_response(state, request)
+        end
+
       %PrepareWriteRequest{} ->
         if require_permission?(state, request, :write_auth) do
           {state,
@@ -214,8 +225,8 @@ defmodule BlueHeron.GATT.Server do
           write_long_characteristic_value(state, request)
         end
 
-      _ ->
-        # Ignore unhandled requests
+      other ->
+        Logger.warning("GATT.Server: unhandled request: #{inspect(other, base: :hex)}")
         {state, nil}
     end
   end
@@ -599,9 +610,23 @@ defmodule BlueHeron.GATT.Server do
     {state, %WriteResponse{}}
   end
 
+  defp write_characteristic_value_no_response(state, request) do
+    service = find_service_by_handle(state.profile, request.handle)
+    id = find_characteristic_id(state.profile, request.handle)
+
+    :ok = service.write.(id, request.data)
+
+    {state, nil}
+  end
+
   defp write_descriptor_value(state, handle, value) do
     profile = Enum.map(state.profile, &map_service_chars(&1, handle, value))
     {%{state | profile: profile}, %WriteResponse{}}
+  end
+
+  defp write_descriptor_value_no_response(state, handle, value) do
+    profile = Enum.map(state.profile, &map_service_chars(&1, handle, value))
+    {%{state | profile: profile}, nil}
   end
 
   defp map_service_chars(service, handle, value) do
