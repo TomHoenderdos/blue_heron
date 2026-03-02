@@ -91,8 +91,14 @@ defmodule BlueHeron.HCI.Transport.UART do
     {:noreply, state}
   end
 
-  def handle_info({:circuits_uart, _dev, msg}, state) do
+  def handle_info({:circuits_uart, _dev, msg}, state) when is_binary(msg) do
+    Logger.debug("UART rx #{byte_size(msg)}B: 0x#{Base.encode16(binary_part(msg, 0, min(byte_size(msg), 24)))}")
     _ = BlueHeron.HCI.Transport.transport_data(msg)
+    {:noreply, state}
+  end
+
+  def handle_info({:circuits_uart, _dev, msg}, state) do
+    Logger.warning("UART rx non-binary: #{inspect(msg)}")
     {:noreply, state}
   end
 end

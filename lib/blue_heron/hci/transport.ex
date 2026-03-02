@@ -108,6 +108,13 @@ defmodule BlueHeron.HCI.Transport do
     %InformationalParameters.ReadBdAddr{},
     %InformationalParameters.ReadBufferSize{},
     # %InformationalParameters.ReadLocalSupportedFeatures{},
+    %ControllerAndBaseband.SetControllerToHostFlowControl{flow_control_enable: 1},
+    %ControllerAndBaseband.HostBufferSize{
+      host_acl_data_packet_length: 256,
+      host_synchronous_data_packet_length: 0,
+      host_total_num_acl_data_packets: 20,
+      host_total_num_synchronous_data_packets: 0
+    },
     %ControllerAndBaseband.SetEventMask{enhanced_flush_complete: false},
     %ControllerAndBaseband.WriteSimplePairingMode{enabled: true},
     %ControllerAndBaseband.WritePageTimeout{timeout: 0x60},
@@ -136,6 +143,8 @@ defmodule BlueHeron.HCI.Transport do
   end
 
   def transport_data(<<0x02, acl_bin::binary>>) do
+    require Logger
+    Logger.debug("ACL raw (#{byte_size(acl_bin)}B): #{inspect(acl_bin, base: :hex, limit: 40)}")
     acl = BlueHeron.ACL.deserialize(acl_bin)
     GenServer.cast(__MODULE__, {:transport_data, :acl, acl})
   end
@@ -350,10 +359,23 @@ defmodule BlueHeron.HCI.Transport do
   end
 
   def handle_cast(
-        {:transport_data, :acl, packet},
+        {:transport_data, :acl, %BlueHeron.ACL{handle: handle} = packet},
         %{setup_complete: true} = state
       ) do
     :ok = BlueHeron.Registry.broadcast({:HCI_ACL_DATA_PACKET, packet})
+    # Acknowledge the received packet to the controller so it frees the buffer slot.
+    # HCI Host_Number_Of_Completed_Packets (OGF 0x03, OCF 0x0035, opcode 0x0C35).
+    # This command generates no CommandComplete/CommandStatus event per spec.
+    ack = <<0x35, 0x0C, 5, 1, handle::little-16, 1::little-16>>
+    Logger.info("Sending C→H ACK for handle #{handle}")
+    :ok = BlueHeron.HCI.Transport.UART.send_command(state.transport, ack)
+    {:noreply, state}
+  end
+
+  def handle_cast(
+        {:transport_data, :acl, _nil_packet},
+        %{setup_complete: true} = state
+      ) do
     {:noreply, state}
   end
 
