@@ -37,7 +37,22 @@ defmodule BlueHeron.HCI.Transport.UART.Framing do
 
   @impl Framing
   def remove_framing(new_data, state) do
-    process(state.frame <> new_data, %{state | frame: <<>>})
+    result = process(state.frame <> new_data, %{state | frame: <<>>})
+
+    case result do
+      {:in_frame, [], %{frame: leftover} = s} when byte_size(leftover) > 0 ->
+        :logger.warning(%{
+          msg: "framing: STALLED",
+          type: s.type,
+          leftover: byte_size(leftover),
+          hex: :binary.encode_hex(binary_part(leftover, 0, min(byte_size(leftover), 20)))
+        })
+
+        result
+
+      _ ->
+        result
+    end
   end
 
   def process(<<0x2, rest::binary>>, %{type: nil} = state) do
@@ -49,11 +64,11 @@ defmodule BlueHeron.HCI.Transport.UART.Framing do
   end
 
   def process(
-        <<handle::little-12, flags::4, length::little-16, data::binary-size(length),
+        <<handle_and_flags::binary-size(2), length::little-16, data::binary-size(length),
           rest::binary>>,
         %{type: 0x2} = state
       ) do
-    frame = <<0x2, handle::little-12, flags::4, length::little-16, data::binary-size(length)>>
+    frame = <<0x2, handle_and_flags::binary, length::little-16, data::binary-size(length)>>
     process(rest, %{state | type: nil, frames: [frame | state.frames]})
   end
 
