@@ -83,6 +83,10 @@ defmodule BlueHeron.HCI.Transport.UART.FirmwareLoaderTest do
       assert FirmwareLoader.firmware_name(0x6109) == "BCM4345C0.hcd"
     end
 
+    test "returns BCM4345C0.hcd for CYW43455 (RPi 4 Model B)" do
+      assert FirmwareLoader.firmware_name(0x6119) == "BCM4345C0.hcd"
+    end
+
     test "returns nil for unknown subversion" do
       assert FirmwareLoader.firmware_name(0x0000) == nil
     end

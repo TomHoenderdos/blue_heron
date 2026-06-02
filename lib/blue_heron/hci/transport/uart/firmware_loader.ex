@@ -24,7 +24,9 @@ defmodule BlueHeron.HCI.Transport.UART.FirmwareLoader do
     0x6106 => "BCM43430A1.hcd",
     0x6107 => "BCM43430B0.hcd",
     0x6109 => "BCM4345C0.hcd",
-    0x6119 => "BCM4345C5.hcd",
+    # Raspberry Pi 4 Model B reports LMP subversion 0x6119, but uses the
+    # BCM4345C0/CYW43455 patchram file in Raspberry Pi firmware packages.
+    0x6119 => "BCM4345C0.hcd",
     0x620E => "BCM4356A2.hcd",
     0x6611 => "BCM4354A2.hcd"
   }

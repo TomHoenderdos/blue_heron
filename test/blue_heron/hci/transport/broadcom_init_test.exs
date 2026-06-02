@@ -108,7 +108,8 @@ defmodule BlueHeron.HCI.Transport.BroadcomInitTest do
       for {subversion, filename} <- [
             {0x6106, "BCM43430A1.hcd"},
             {0x6107, "BCM43430B0.hcd"},
-            {0x6109, "BCM4345C0.hcd"}
+            {0x6109, "BCM4345C0.hcd"},
+            {0x6119, "BCM4345C0.hcd"}
           ] do
         File.write!(Path.join(firmware_dir, filename), <<0x03, 0x0C, 0x00>>)
 
